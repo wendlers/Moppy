@@ -8,3 +8,8 @@ Java/MoppyDesk/nbproject/build-impl.xml
 Java/MoppyDesk/nbproject/genfiles.properties
 Java/MoppySim/nbproject/build-impl.xml
 Java/MoppySim/nbproject/genfiles.properties
+.ant-targets-build.xml
+build/
+dist/
+.atom-build.xml
+

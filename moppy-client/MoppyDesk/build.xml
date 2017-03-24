@@ -7,7 +7,8 @@
   <property name="build" location="build"/>
   <property name="dist" location="dist"/>
 
-  <property name="rxtxlib" location="../SerialDrivers/nrjavaserial-3.9.3.jar"/>
+  <property name="rxtxlib_dir" location="../SerialDrivers"/>
+  <property name="rxtxlib" location="${rxtxlib_dir}/nrjavaserial-3.9.3.jar"/>
 
   <target name="init">
     <tstamp/>
@@ -15,18 +16,63 @@
   </target>
 
   <target name="compile" depends="init" description="compile the source">
-    <javac srcdir="${src}" destdir="${build}">
+    <javac
+		srcdir="${src}"
+		destdir="${build}"
+		target="1.8"
+	 	encoding="UTF-8"
+		source="1.8"
+		debug="none">
       <classpath path="${rxtxlib}"/>
     </javac>
   </target>
 
   <target name="dist" depends="compile" description="generate the distribution">
     <mkdir dir="${dist}/lib"/>
-    <jar jarfile="${dist}/lib/MoppyDesk-${DSTAMP}.jar" basedir="${build}" manifest="manifest.mf"/>
-    <zip destfile="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar">
-      <zipgroupfileset dir="../SerialDrivers" includes="*.jar"/>
-      <zipgroupfileset dir="${dist}/lib" includes="*.jar"/>
-    </zip>
+    <copy todir="${build}/moppydesk/resources" flatten="true">
+      <resources>
+        <file file="${src}/moppydesk/resources/MoppyUI.properties"/>
+      </resources>
+    </copy>
+    <copy todir="${build}/moppydesk/ui" flatten="true">
+      <resources>
+        <file file="${src}/moppydesk/ui/moppy_ico.png"/>
+      </resources>
+    </copy>
+	<jar jarfile="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar" basedir="${build}">
+		<zipfileset includes="**/*" src="${rxtxlib}"/>
+		<manifest>
+		  <attribute name="Main-Class" value="moppydesk.MoppyUI"/>
+		</manifest>
+	</jar>
+  </target>
+
+  <target name="appimage" depends="dist" description="create appimage">
+	<copy todir="${dist}/appimage">
+    	<fileset dir="appimage"/>
+  	</copy>
+    <copy tofile="${dist}/appimage/MoppyDesk.png">
+      <resources>
+        <file file="${src}/moppydesk/ui/moppy_ico.png"/>
+      </resources>
+    </copy>
+    <copy tofile="${dist}/appimage/MoppyDesk-combined.jar">
+      <resources>
+        <file file="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar"/>
+      </resources>
+    </copy>
+	<exec executable="chmod">
+		<arg value="+x"/>
+		<arg value="${dist}/appimage/AppRun"/>
+	</exec>
+	<exec executable="appimagetool">
+		<arg value="${dist}/appimage"/>
+		<arg value="${dist}/MoppyDesk-x86_64.AppImag"/>
+	</exec>
+  </target>
+
+  <target name="run" depends="dist">
+	  <java jar="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar" fork="true"/>
   </target>
 
   <target name="clean" description="clean up">
