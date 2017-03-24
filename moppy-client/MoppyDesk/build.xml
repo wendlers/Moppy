@@ -1,0 +1,36 @@
+<project name="MoppyDesk" default="dist" basedir=".">
+  <description>
+    MoppyDesktop Client
+  </description>
+
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+  <property name="dist" location="dist"/>
+
+  <property name="rxtxlib" location="../SerialDrivers/nrjavaserial-3.9.3.jar"/>
+
+  <target name="init">
+    <tstamp/>
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init" description="compile the source">
+    <javac srcdir="${src}" destdir="${build}">
+      <classpath path="${rxtxlib}"/>
+    </javac>
+  </target>
+
+  <target name="dist" depends="compile" description="generate the distribution">
+    <mkdir dir="${dist}/lib"/>
+    <jar jarfile="${dist}/lib/MoppyDesk-${DSTAMP}.jar" basedir="${build}" manifest="manifest.mf"/>
+    <zip destfile="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar">
+      <zipgroupfileset dir="../SerialDrivers" includes="*.jar"/>
+      <zipgroupfileset dir="${dist}/lib" includes="*.jar"/>
+    </zip>
+  </target>
+
+  <target name="clean" description="clean up">
+    <delete dir="${build}"/>
+    <delete dir="${dist}"/>
+  </target>
+</project>
