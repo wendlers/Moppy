@@ -6,8 +6,10 @@ import gnu.io.PortInUseException;
 import gnu.io.UnsupportedCommOperationException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Set;
 
 /**
  *
@@ -17,15 +19,27 @@ public class MoppyCOMBridge {
 
     static int FIRST_PIN = 2;
     static int MAX_PIN = 17;
-    int SERIAL_RATE = 9600;
+	static int SERIAL_RATE = 9600;
+
+	static String MOPPY_PROXY_IDENT = "MOPPY PROXY";
+	static String MOPPY_PROXY_PTY   = "/tmp/.moppy_proxy_pty";
+
     OutputStream os;
     NRSerialPort com;
+
     private boolean isOutputOpen = false;
 
     public MoppyCOMBridge(String portName) throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
-        com = new NRSerialPort(portName, SERIAL_RATE);
+
+		String p = portName;
+
+		if(p.equals(MOPPY_PROXY_IDENT)) {
+			p = MOPPY_PROXY_PTY;
+		}
+
+        com = new NRSerialPort(p, SERIAL_RATE);
         com.connect();
-        
+
         os = com.getOutputStream();
         isOutputOpen = true;
     }
@@ -105,6 +119,15 @@ public class MoppyCOMBridge {
     }
 
     public static String[] getAvailableCOMPorts() {
-        return NRSerialPort.getAvailableSerialPorts().toArray(new String[0]);
+		Set<String> ports = NRSerialPort.getAvailableSerialPorts();
+
+		if(System.getProperty("os.name").equals("Linux")) {
+			File f = new File(MOPPY_PROXY_PTY);
+			if(f.exists() && !f.isDirectory()) {
+			    ports.add(MOPPY_PROXY_IDENT);
+			}
+		}
+
+        return ports.toArray(new String[0]);
     }
 }
