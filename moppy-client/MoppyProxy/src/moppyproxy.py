@@ -156,7 +156,7 @@ class UdpWriter:
 
 class SysfsWriter:
 
-    def __init__(self, file_path="commad"):
+    def __init__(self, file_path="/sys/kernel/moppy/command"):
 
         self.logger = logging.getLogger('sysfsw')
 
