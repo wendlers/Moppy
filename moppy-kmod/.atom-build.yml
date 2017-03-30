@@ -1,0 +1,55 @@
+cmd: "make"
+name: "all"
+env:
+  PATH: "/home/stefan/dev/git/Moppy/moppy-kmod/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin:/bin:/usr/bin:/usr/local/bin"
+  ARCH: "arm"
+  KERNEL: "kernel7"
+  CROSS_COMPILE: "arm-linux-gnueabihf-"
+
+atomCommandName: build-kmod:moppy
+
+targets:
+
+  modules:
+      cmd: "make"
+      name: "modules"
+      args:
+        - build-modules
+      env:
+        PATH: "/home/stefan/dev/git/Moppy/moppy-kmod/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin:/bin:/usr/bin:/usr/local/bin"
+        ARCH: "arm"
+        KERNEL: "kernel7"
+        CROSS_COMPILE: "arm-linux-gnueabihf-"
+
+  clean:
+      cmd: "make"
+      name: "clean"
+      args:
+        - clean
+      env:
+        PATH: "/home/stefan/dev/git/Moppy/moppy-kmod/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin:/bin:/usr/bin:/usr/local/bin"
+        ARCH: "arm"
+        KERNEL: "kernel7"
+        CROSS_COMPILE: "arm-linux-gnueabihf-"
+
+  distclean:
+      cmd: "make"
+      name: "distclean"
+      args:
+        - distclean
+      env:
+        PATH: "/home/stefan/dev/git/Moppy/moppy-kmod/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin:/bin:/usr/bin:/usr/local/bin"
+        ARCH: "arm"
+        KERNEL: "kernel7"
+        CROSS_COMPILE: "arm-linux-gnueabihf-"
+
+  proper:
+      cmd: "make"
+      name: "proper"
+      args:
+        - proper
+      env:
+        PATH: "/home/stefan/dev/git/Moppy/moppy-kmod/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin:/bin:/usr/bin:/usr/local/bin"
+        ARCH: "arm"
+        KERNEL: "kernel7"
+        CROSS_COMPILE: "arm-linux-gnueabihf-"

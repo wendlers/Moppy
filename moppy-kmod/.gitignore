@@ -1,0 +1,33 @@
+# Object files
+*.o
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+linux/
+tools/
+
+modules.order
+*.ko.cmd
+*.mod.o.cmd
+*.o.cmd
+*.ko
+
+.tmp_versions/
+Module.symvers
+*.mod.c
+
+rpi-moppy-kernel.tar.bz2
+sysroot/

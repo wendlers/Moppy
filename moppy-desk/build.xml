@@ -1,17 +1,14 @@
-<project name="MoppySim" default="dist" basedir=".">
+<project name="MoppyDesk" default="dist" basedir=".">
   <description>
-    MoppySim Client
+    MoppyDesktop Client
   </description>
 
   <property name="src" location="src"/>
   <property name="build" location="build"/>
   <property name="dist" location="dist"/>
 
-  <property name="rxtxlib_dir" location="../SerialDrivers"/>
+  <property name="rxtxlib_dir" location="./lib"/>
   <property name="rxtxlib" location="${rxtxlib_dir}/nrjavaserial-3.9.3.jar"/>
-
-  <property name="jsynlib_dir" location="lib"/>
-  <property name="jsynlib" location="${jsynlib_dir}/jsyn_16_7_3.jar"/>
 
   <target name="init">
     <tstamp/>
@@ -26,25 +23,26 @@
 	 	encoding="UTF-8"
 		source="1.8"
 		debug="none">
-      <classpath>
-         <pathelement location="${rxtxlib}"/>
-         <pathelement location="${jsynlib}"/>
-      </classpath>
+      <classpath path="${rxtxlib}"/>
     </javac>
   </target>
 
   <target name="dist" depends="compile" description="generate the distribution">
     <mkdir dir="${dist}/lib"/>
-   <copy todir="${build}/moppysim/ui" flatten="true">
+    <copy todir="${build}/moppydesk/resources" flatten="true">
       <resources>
-        <file file="${src}/moppysim/ui/floppy_xs.png"/>
+        <file file="${src}/moppydesk/resources/MoppyUI.properties"/>
       </resources>
     </copy>
-	<jar jarfile="${dist}/lib/MoppySim-combined-${DSTAMP}.jar" basedir="${build}">
+    <copy todir="${build}/moppydesk/ui" flatten="true">
+      <resources>
+        <file file="${src}/moppydesk/ui/moppy_ico.png"/>
+      </resources>
+    </copy>
+	<jar jarfile="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar" basedir="${build}">
 		<zipfileset includes="**/*" src="${rxtxlib}"/>
-		<zipfileset includes="**/*" src="${jsynlib}"/>
 		<manifest>
-		  <attribute name="Main-Class" value="moppysim.ui.MainWindow"/>
+		  <attribute name="Main-Class" value="moppydesk.MoppyUI"/>
 		</manifest>
 	</jar>
   </target>
@@ -53,14 +51,14 @@
 	<copy todir="${dist}/appimage">
     	<fileset dir="appimage"/>
   	</copy>
-    <copy tofile="${dist}/appimage/MoppySim.png">
+    <copy tofile="${dist}/appimage/MoppyDesk.png">
       <resources>
-        <file file="${src}/moppysim/ui/floppy_xs.png"/>
+        <file file="${src}/moppydesk/ui/moppy_ico.png"/>
       </resources>
     </copy>
-    <copy tofile="${dist}/appimage/MoppySim-combined.jar">
+    <copy tofile="${dist}/appimage/MoppyDesk-combined.jar">
       <resources>
-        <file file="${dist}/lib/MoppySim-combined-${DSTAMP}.jar"/>
+        <file file="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar"/>
       </resources>
     </copy>
 	<exec executable="chmod">
@@ -69,12 +67,12 @@
 	</exec>
 	<exec executable="appimagetool">
 		<arg value="${dist}/appimage"/>
-		<arg value="${dist}/MoppySim-x86_64.AppImag"/>
+		<arg value="${dist}/MoppyDesk-x86_64.AppImag"/>
 	</exec>
   </target>
 
   <target name="run" depends="dist">
-	  <java jar="${dist}/lib/MoppySim-combined-${DSTAMP}.jar" fork="true"/>
+	  <java jar="${dist}/lib/MoppyDesk-combined-${DSTAMP}.jar" fork="true"/>
   </target>
 
   <target name="clean" description="clean up">
