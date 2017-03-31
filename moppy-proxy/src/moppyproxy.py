@@ -156,7 +156,7 @@ class UdpWriter:
 
 class SysfsWriter:
 
-    def __init__(self, file_path="/sys/kernel/moppy/command"):
+    def __init__(self, file_path="/sys/kernel/moppy/"):
 
         self.logger = logging.getLogger('sysfsw')
 
@@ -168,8 +168,12 @@ class SysfsWriter:
 
         pin, value = struct.unpack("!BH", msg)
 
-        with open(self.file_path, "w") as f:
-            f.write("%d, %d" % (pin, value))
+        if pin == 100 and (pin == 0 || pin > 4):
+            with open(self.file_path + "ctrl", "w") as f:
+                f.write("reset")
+        else:
+            with open(self.file_path + "ticks", "w") as f:
+                f.write("%d, %d" % ((pin - 2) / 2, value))
 
     def __str__(self):
         return 'sysfsw'
