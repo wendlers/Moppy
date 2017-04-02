@@ -12,4 +12,4 @@ Java/MoppySim/nbproject/genfiles.properties
 build/
 dist/
 .atom-build.xml
-
+.idea

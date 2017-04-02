@@ -190,7 +190,7 @@ static ssize_t sysfs_ticks_store(struct kobject *kobj, struct kobj_attribute *at
 
     return count;
 }
-static struct kobj_attribute ticks_attribute = __ATTR(command, S_IWUSR, NULL, sysfs_ticks_store);
+static struct kobj_attribute ticks_attribute = __ATTR(ticks, (S_IWUSR | S_IWGRP), NULL, sysfs_ticks_store);
 
 /**
  * Handle writes to the sysfs entry 'freq'.
@@ -218,21 +218,21 @@ static ssize_t sysfs_freq_store(struct kobject *kobj, struct kobj_attribute *att
 
     return count;
 }
-static struct kobj_attribute freq_attribute = __ATTR(command, S_IWUSR, NULL, sysfs_freq_store);
+static struct kobj_attribute freq_attribute = __ATTR(freq, (S_IWUSR | S_IWGRP), NULL, sysfs_freq_store);
 
 /**
  * Handle writes to the sysfs entry 'ctrl'.
  */
 static ssize_t sysfs_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    if(strcmp(buf, "reset") == 0) {
+    if(strncmp(buf, "reset", 5) == 0) {
         printk(KERN_INFO "moppy: reset\n");
         reset();
     }
 
     return count;
 }
-static struct kobj_attribute ctrl_attribute = __ATTR(command, S_IWUSR, NULL, sysfs_ctrl_store);
+static struct kobj_attribute ctrl_attribute = __ATTR(ctrl, (S_IWUSR | S_IWGRP), NULL, sysfs_ctrl_store);
 
 /* SYSFS: List of all attributes exported to sysfs */
 static struct attribute *attrs[] = {

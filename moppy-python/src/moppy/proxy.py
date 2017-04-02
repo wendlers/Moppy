@@ -168,7 +168,7 @@ class SysfsWriter:
 
         pin, value = struct.unpack("!BH", msg)
 
-        if pin == 100 and (pin == 0 || pin > 4):
+        if pin == 100 and (pin == 0 or pin > 4):
             with open(self.file_path + "ctrl", "w") as f:
                 f.write("reset")
         else:
