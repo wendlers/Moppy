@@ -2,7 +2,7 @@
  * Moppy as a kernel module :-)
  *
  * Author:
- * 	Stefan Wendler (devnull@kaltpost.de)
+ *   Stefan Wendler (devnull@kaltpost.de)
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -21,23 +21,24 @@
 #include <linux/delay.h>
 #include <linux/hrtimer.h>
 
+#include "midi.h"
 
 static struct hrtimer hr_timer;
 
 #define PERIOD              40000       // 25kHZ (40usec)
-#define FREQ_FACT           12500       // 1000000 / (PERIOD / 1000) * 2
+#define FREQ_FACT           80          // (PERIOD / 1000) * 2
 #define LOW                 0
 #define HIGH                1
 #define DISABLED            0
 #define ENABLED             1
 
-#define MAX_TRACKS          7
+#define MAX_CHANNEL          7
 #define MAX_DRIVE_POS       158         // for 3.5" floppy
 
 /**
- * Definition of a single track.
+ * Definition of a single channel.
  */
-struct track_t {
+struct channel_t {
     /* pin used for stepper */
     int pin_step;
 
@@ -50,7 +51,7 @@ struct track_t {
     /* label given for direction pin in GPIO subsytem */
     char *label_dir;
 
-    /* Enable (1) or disable (0) this track */
+    /* Enable (1) or disable (0) this channel */
     int enabled;
 
     /* current stepper position */
@@ -70,9 +71,9 @@ struct track_t {
 };
 
 /**
- * Register available tracks.
+ * Register available channels.
  */
-static struct track_t tracks[] = {
+static struct channel_t channels[] = {
     {17, "ST#0", 18, "DI#0", ENABLED,  0, LOW, LOW, 0, 0},
     {27, "ST#1", 22, "DI#1", ENABLED,  0, LOW, LOW, 0, 0},
     {23, "ST#2", 24, "DI#2", ENABLED,  0, LOW, LOW, 0, 0},
@@ -84,29 +85,29 @@ static struct track_t tracks[] = {
 };
 
 /**
- * Update a single track / floppy.
+ * Update a single channel / floppy.
  */
-void update_track(int track)
+void update_channel(int channel)
 {
-    if(track < 0 || track > MAX_TRACKS || !tracks[track].enabled) {
+    if(channel < 0 || channel > MAX_CHANNEL || !channels[channel].enabled) {
         return;
     }
 
     // Switch directions if end has been reached
-    if(tracks[track].pos >= MAX_DRIVE_POS) {
-        gpio_set_value(tracks[track].pin_dir, (tracks[track].state_dir = HIGH));
-    } else if(tracks[track].pos <= 0)	{
-        gpio_set_value(tracks[track].pin_dir, (tracks[track].state_dir = LOW));
+    if(channels[channel].pos >= MAX_DRIVE_POS) {
+        gpio_set_value(channels[channel].pin_dir, (channels[channel].state_dir = HIGH));
+    } else if(channels[channel].pos <= 0)  {
+        gpio_set_value(channels[channel].pin_dir, (channels[channel].state_dir = LOW));
     }
 
     // Update currentPosition
-    tracks[track].pos += tracks[track].state_dir ? -1 : 1;
+    channels[channel].pos += channels[channel].state_dir ? -1 : 1;
 
     // toggle step pin
-    gpio_set_value(tracks[track].pin_step, tracks[track].state_step);
-    tracks[track].state_step = ~tracks[track].state_step;
+    gpio_set_value(channels[channel].pin_step, channels[channel].state_step);
+    channels[channel].state_step = ~channels[channel].state_step;
 
-    tracks[track].period_current = 0;
+    channels[channel].period_current = 0;
 }
 
 /**
@@ -118,24 +119,24 @@ void reset(void)
     int j = 0;
 
     for(i = 0; i <= MAX_DRIVE_POS / 2; i++) {
-        for(j = 0; j <= MAX_TRACKS; j++) {
-            if(tracks[j].enabled) {
-                gpio_set_value(tracks[j].pin_dir, HIGH);
-                gpio_set_value(tracks[j].pin_step, HIGH);
-                gpio_set_value(tracks[j].pin_step, LOW);
+        for(j = 0; j <= MAX_CHANNEL; j++) {
+            if(channels[j].enabled) {
+                gpio_set_value(channels[j].pin_dir, HIGH);
+                gpio_set_value(channels[j].pin_step, HIGH);
+                gpio_set_value(channels[j].pin_step, LOW);
             }
         }
         mdelay(5);
     }
 
-    for(i = 0; i <= MAX_TRACKS; i++) {
-        if(tracks[i].enabled) {
-            gpio_set_value(tracks[i].pin_dir, LOW);
-            tracks[i].period = 0;
-            tracks[i].pos = 0;
-            tracks[i].state_dir = LOW;
-            tracks[i].state_step = LOW;
-            tracks[i].period_current = 0;
+    for(i = 0; i <= MAX_CHANNEL; i++) {
+        if(channels[i].enabled) {
+            gpio_set_value(channels[i].pin_dir, LOW);
+            channels[i].period = 0;
+            channels[i].pos = 0;
+            channels[i].state_dir = LOW;
+            channels[i].state_step = LOW;
+            channels[i].period_current = 0;
         }
     }
 }
@@ -155,9 +156,9 @@ enum hrtimer_restart tick(struct hrtimer *timer_for_restart)
 
     hrtimer_forward(timer_for_restart, currtime, interval);
 
-    for(i = 0; i <= MAX_TRACKS; i++) {
-        if(tracks[i].period > 0 && ++tracks[i].period_current >= tracks[i].period) {
-            update_track(i);
+    for(i = 0; i <= MAX_CHANNEL; i++) {
+        if(channels[i].period > 0 && ++channels[i].period_current >= channels[i].period) {
+            update_channel(i);
         }
     }
 
@@ -167,22 +168,22 @@ enum hrtimer_restart tick(struct hrtimer *timer_for_restart)
 /**
  * Handle writes to the sysfs entry 'ticks'.
  *
- * Format is: <track>, <ticks>
+ * Format is: <channel>, <ticks>
  *
- * E.g. 440Hz / A4 to track 0 (440Hz = 28 ticks)
+ * E.g. 440Hz / A4 to channel 0 (440Hz = 28 ticks)
  *
  *  echo "0, 28" > /sys/kernel/moppy/ticks
  */
 static ssize_t sysfs_ticks_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    int track = 0;
+    int channel = 0;
     int value = 0;
 
-    if(sscanf(buf, "%d, %d", &track, &value) == 2) {
-        if(track >= 0 && track <= MAX_TRACKS) {
-            tracks[track].period = value;
+    if(sscanf(buf, "%d, %d", &channel, &value) == 2) {
+        if(channel >= 0 && channel <= MAX_CHANNEL) {
+            channels[channel].period = value;
         } else {
-            printk(KERN_ERR "moppy: invalid track number %d\n", track);
+            printk(KERN_ERR "moppy: invalid channel number %d\n", channel);
         }
     } else {
         printk(KERN_ERR "moppy: received invalid coammnd\n");
@@ -193,24 +194,56 @@ static ssize_t sysfs_ticks_store(struct kobject *kobj, struct kobj_attribute *at
 static struct kobj_attribute ticks_attribute = __ATTR(ticks, (S_IWUSR | S_IWGRP), NULL, sysfs_ticks_store);
 
 /**
+ * Handle writes to the sysfs entry 'note'.
+ *
+ * Format is: <channel>, <note>
+ *
+ * E.g. 69 / A4 to channel 0 (440Hz = 28 ticks)
+ *
+ *  echo "0, 69" > /sys/kernel/moppy/note
+ */
+static ssize_t sysfs_note_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+    int channel = 0;
+    int value = 0;
+
+    if(sscanf(buf, "%d, %d", &channel, &value) == 2) {
+        if(channel >= 0 && channel <= MAX_CHANNEL && value >= 0 && value <= 127) {
+            channels[channel].period = midi_note_period[value];
+        } else {
+            printk(KERN_ERR "moppy: invalid channel number %d\n", channel);
+        }
+    } else {
+        printk(KERN_ERR "moppy: received invalid coammnd\n");
+    }
+
+    return count;
+}
+static struct kobj_attribute note_attribute = __ATTR(note, (S_IWUSR | S_IWGRP), NULL, sysfs_note_store);
+
+/**
  * Handle writes to the sysfs entry 'freq'.
  *
- * Format is: <track>, <freq>
+ * Format is: <channel>, <freq>
  *
- * E.g. 440Hz / A4 to track 0
+ * E.g. 440Hz / A4 to channel 0
  *
  *  echo "0, 440" > /sys/kernel/moppy/freq
  */
 static ssize_t sysfs_freq_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    int track = 0;
+    int channel = 0;
     int value = 0;
+    int period = 0;
 
-    if(sscanf(buf, "%d, %d", &track, &value) == 2) {
-        if(track >= 0 && track <= MAX_TRACKS) {
-            tracks[track].period = value > 0 ? FREQ_FACT / value : 0;
+    if(sscanf(buf, "%d, %d", &channel, &value) == 2) {
+        if(channel >= 0 && channel <= MAX_CHANNEL) {
+          if(value > 0) {
+            period = (1000000 / value) / FREQ_FACT;
+          }
+          channels[channel].period = (int)(period);
         } else {
-            printk(KERN_ERR "moppy: invalid track number %d\n", track);
+            printk(KERN_ERR "moppy: invalid channel number %d\n", channel);
         }
     } else {
         printk(KERN_ERR "moppy: received invalid coammnd\n");
@@ -234,11 +267,35 @@ static ssize_t sysfs_ctrl_store(struct kobject *kobj, struct kobj_attribute *att
 }
 static struct kobj_attribute ctrl_attribute = __ATTR(ctrl, (S_IWUSR | S_IWGRP), NULL, sysfs_ctrl_store);
 
-/* SYSFS: List of all attributes exported to sysfs */
+/**
+ * Get some basic information about the setup.
+ *
+ * Returns a single line of the format:
+ *
+ *	<active_channels>, <freq_fact>
+ */
+static ssize_t sysfs_info_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	int i = 0;
+	int active_channels = 0;
+
+	for(i = 0; i <= MAX_CHANNEL; i++) {
+			active_channels += channels[i].enabled;
+	}
+
+  return sprintf(buf, "%d, %d\n", active_channels, FREQ_FACT);
+}
+static struct kobj_attribute info_attribute = __ATTR(info, (S_IRUSR | S_IRGRP), sysfs_info_show, NULL);
+
+/**
+ *  List of all attributes exported to sysfs
+ */
 static struct attribute *attrs[] = {
     &ticks_attribute.attr,
+    &note_attribute.attr,
     &freq_attribute.attr,
     &ctrl_attribute.attr,
+		&info_attribute.attr,
     NULL,
 };
 
@@ -278,21 +335,21 @@ static int __init moppy_init(void)
 
     printk(KERN_INFO "moppy: registered command interface: /sys/kernel/moppy/\n");
 
-    for(i = 0; i <= MAX_TRACKS; i++) {
-        if(tracks[i].enabled) {
-            ret = gpio_request_one(tracks[i].pin_step, GPIOF_OUT_INIT_LOW, tracks[i].label_step);
+    for(i = 0; i <= MAX_CHANNEL; i++) {
+        if(channels[i].enabled) {
+            ret = gpio_request_one(channels[i].pin_step, GPIOF_OUT_INIT_LOW, channels[i].label_step);
             if(!ret) {
-                ret = gpio_request_one(tracks[i].pin_dir, GPIOF_OUT_INIT_LOW, tracks[i].label_dir);
+                ret = gpio_request_one(channels[i].pin_dir, GPIOF_OUT_INIT_LOW, channels[i].label_dir);
 
                 if(!ret) {
                     printk(KERN_INFO "moppy: registered GPIOs #%d/#%d (%s/%s)\n",
-                           tracks[i].pin_step, tracks[i].pin_dir, tracks[i].label_step, tracks[i].label_dir);
+                           channels[i].pin_step, channels[i].pin_dir, channels[i].label_step, channels[i].label_dir);
                 }
             }
             if(ret) {
                 printk(KERN_INFO "moppy: failed to registered GPIOs #%d/#%d (%s/%s)\n",
-                       tracks[i].pin_step, tracks[i].pin_dir, tracks[i].label_step, tracks[i].label_dir);
-                tracks[i].enabled = 0;
+                       channels[i].pin_step, channels[i].pin_dir, channels[i].label_step, channels[i].label_dir);
+                channels[i].enabled = 0;
             }
         }
     }
@@ -321,12 +378,12 @@ static void __exit moppy_exit(void)
     kobject_put(moppy_kobj);
     hrtimer_cancel(&hr_timer);
 
-    for(i = 0; i <= MAX_TRACKS; i++) {
-        if(tracks[i].enabled) {
-            gpio_set_value(tracks[i].pin_step, LOW);
-            gpio_set_value(tracks[i].pin_dir, LOW);
-            gpio_free(tracks[i].pin_step);
-            gpio_free(tracks[i].pin_dir);
+    for(i = 0; i <= MAX_CHANNEL; i++) {
+        if(channels[i].enabled) {
+            gpio_set_value(channels[i].pin_step, LOW);
+            gpio_set_value(channels[i].pin_dir, LOW);
+            gpio_free(channels[i].pin_step);
+            gpio_free(channels[i].pin_dir);
         }
     }
 }

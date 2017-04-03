@@ -8,18 +8,6 @@ colorama.init()
 
 class MoppySysfsPort(mido.ports.BaseOutput):
 
-    PERIODS = [
-        30578, 28861, 27242, 25713, 24270, 22909, 21622, 20409, 19263, 18182, 17161, 16198,
-        30578, 28861, 27242, 25713, 24270, 22909, 21622, 20409, 19263, 18182, 17161, 16198,
-        30578, 28861, 27242, 25713, 24270, 22909, 21622, 20409, 19263, 18182, 17161, 16198,
-        15289, 14436, 13621, 12856, 12135, 11454, 10811, 10205, 9632, 9091, 8581, 8099,
-        7645, 7218, 6811, 6428, 6068, 5727, 5406, 5103, 4816, 4546, 4291, 4050,
-        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552, 2408, 2273, 2146, 2025,
-        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552, 2408, 2273, 2146, 2025,
-        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552, 2408, 2273, 2146, 2025,
-        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552, 2408, 2273, 2146, 2025,
-    ]
-
     def _write_sysfs(self, msg, target="freq"):
 
         with open("/sys/kernel/moppy/" + target, "w") as f:
@@ -29,16 +17,8 @@ class MoppySysfsPort(mido.ports.BaseOutput):
 
         if message.type == 'note_on':
 
-            '''
-            freq = note.midi_to_freq(message.note)
-            msg = "%d, %d" % (message.channel, freq)
-
-            print(msg + " (time %f)" % message.time)
-            '''
-            msg = "%d, %d" % (message.channel, self.PERIODS[message.note] / 80)
-            # print(msg + " (time %f)" % message.time)
-
-            self._write_sysfs(msg, "ticks")
+            msg = "%d, %d" % (message.channel, message.note)
+            self._write_sysfs(msg, "note")
 
         elif message.type == 'note_off':
             msg = "%d, %d" % (message.channel, 0)
@@ -81,7 +61,7 @@ def analyze(midi):
 
     print("")
     print("Results for: %s" % midi.filename)
-    print("             length: %d" % midi.length)
+    print("             length: %d:%d" % (midi.length // 60, midi.length - (midi.length // 60) * 60))
     print("          midi type: %d" % midi.type)
     print("   number of tracks: %d" % len(midi.tracks))
     print(" number of channels: %d" % (len(stats["channels"])))
@@ -213,7 +193,7 @@ def play_optimized(port, filename, max_ch, ch_filter=None):
 
     print("")
     print(("c/o  | " + "%02d " * 16) % tuple(range(16)))
-    print("-" * 55)
+    print("-" * 79)
 
     port.reset()
 
@@ -223,7 +203,7 @@ def play_optimized(port, filename, max_ch, ch_filter=None):
 
             if msg.type in ['note_on', 'note_off'] and msg.channel in ch_map:
 
-                # msg = constraint_octave(msg)
+                msg = constraint_octave(msg)
                 msg.channel = ch_map[msg.channel]
 
                 octave = msg.note // 12 - 1
@@ -236,10 +216,10 @@ def play_optimized(port, filename, max_ch, ch_filter=None):
 
                 for o, chan_stat in enumerate(stats):
 
-                    disp = "%02d   | %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X" % \
-                           (tuple([o]) +  tuple(chan_stat))
+                    disp = "%02d   | %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d %03d" % \
+                           (tuple([o]) + tuple(chan_stat))
 
-                    print(disp.replace(" 00", " __").replace("FF", "--"))
+                    print(disp.replace(" 000", " ___").replace("255", colorama.Fore.GREEN + ".|." + colorama.Fore.RESET))
 
                 print(colorama.Cursor.UP(len(stats) + 1) + colorama.Cursor.BACK())
 
