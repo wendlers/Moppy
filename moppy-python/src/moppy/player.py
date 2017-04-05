@@ -51,6 +51,8 @@ class Player:
 
     def play(self, midi=None, info=None):
 
+        self.port.reset()
+
         if midi is None:
             midi = mido.MidiFile(self.filename)
 
@@ -71,8 +73,6 @@ class Player:
 
                 if mappend_ch == self.ch_max:
                     break
-
-        self.port.reset()
 
         self.playing = True
 
@@ -303,6 +303,8 @@ class VisualPlayer(Player):
             self.stop()
 
     def play(self, midi=None, info=None):
+
+        self.port.reset()
 
         if midi is None:
             midi = mido.MidiFile(self.filename)
