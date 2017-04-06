@@ -5,6 +5,15 @@ import mido
 import os
 
 
+class NullPort(mido.ports.BaseOutput):
+
+    def _send(self, message):
+        pass
+
+    def reset(self):
+        pass
+
+
 class MoppySysfsPort(mido.ports.BaseOutput):
 
     def _write_sysfs(self, msg, target="freq"):
@@ -35,17 +44,21 @@ class MoppySysfsPort(mido.ports.BaseOutput):
 
 class Player:
 
-    def __init__(self, port, filename, ch_max=4, ch_filter=None, update_hook=None):
+    def __init__(self, port, filename, ch_max=4, ch_filter=None,
+                 ch_optimize=True, octave_optimize=True, update_hook=None):
 
         self.port = port
         self.filename = filename
 
         if ch_filter is None:
-            self.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15]
+            self.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
         else:
             self.ch_filter = ch_filter
 
         self.ch_max = ch_max
+        self.ch_optimize = ch_optimize
+        self.octave_optimize = octave_optimize
+
         self.update_hook = update_hook
         self.playing = False
 
@@ -59,20 +72,27 @@ class Player:
         if info is None:
             info = self.analyze(midi)
 
-        most_used_channels = sorted(info["channels"].items(), key=operator.itemgetter(1), reverse=True)
-
         ch_map = {}
 
-        mappend_ch = 0
+        if self.ch_optimize:
 
-        for ch, _ in most_used_channels:
-            if ch in self.ch_filter:
+            most_used_channels = sorted(info["channels"].items(), key=operator.itemgetter(1),
+                                        reverse=True)
 
-                ch_map[ch] = mappend_ch
-                mappend_ch += 1
+            mapped_ch = 0
 
-                if mappend_ch == self.ch_max:
-                    break
+            for ch, _ in most_used_channels:
+                if ch in self.ch_filter:
+
+                    ch_map[ch] = mapped_ch
+                    mapped_ch += 1
+
+                    if mapped_ch == self.ch_max:
+                        break
+        else:
+
+            for ch in self.ch_filter:
+                ch_map[ch] = ch
 
         self.playing = True
 
@@ -83,7 +103,9 @@ class Player:
 
             if msg.type in ['note_on', 'note_off'] and msg.channel in ch_map:
 
-                msg = self.constraint_octave(msg)
+                if self.octave_optimize:
+                    msg = self.constraint_octave(msg)
+
                 msg.channel = ch_map[msg.channel]
 
                 octave = msg.note // 12 - 1
@@ -98,25 +120,13 @@ class Player:
 
         self.port.reset()
 
-    def analyze(self, midi):
+    @staticmethod
+    def analyze(midi):
 
         stats = {
             "channels": {},
             "octaves": {},
         }
-
-        '''
-        print("")
-        print("Results for: %s" % midi.filename)
-        print("             length: %d:%d" % (midi.length // 60, midi.length - (midi.length // 60) * 60))
-        print("          midi type: %d" % midi.type)
-        print("   number of tracks: %d" % len(midi.tracks))
-        print(" number of channels: %d" % (len(stats["channels"])))
-        print("      channels used: %s" % ([x for x in stats["channels"].keys()]))
-        print("  notes in channels: %s" % stats["channels"])
-        print("  number of octaves: %d" % (len(stats["octaves"])))
-        print("       octaves used: %s" % ([x for x in stats["octaves"].keys()]))
-        '''
 
         for msg in midi:
 
@@ -138,7 +148,8 @@ class Player:
 
         return stats
 
-    def constraint_octave(self, msg):
+    @staticmethod
+    def constraint_octave(msg):
 
         octave = msg.note // 12 - 1
 
@@ -155,9 +166,9 @@ class Player:
 
 class VisualPlayer(Player):
 
-    def __init__(self, port, filename, ch_max=4, ch_filter=None):
+    def __init__(self, port, filename, ch_max=4, ch_filter=None, ch_optimize=True, octave_optimize=True):
 
-        Player.__init__(self, port, filename, ch_max, ch_filter, self.set_note)
+        Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize, octave_optimize, self.set_note)
 
         self.ch_last_oct = {}
         self.info_height = 15
@@ -278,12 +289,12 @@ class VisualPlayer(Player):
 
         self.win_notes.refresh()
 
-        self.handl_keys()
+        self.handle_keys()
 
     def update_file_info(self):
 
         self.win_info.addstr( 2, 3, "File           : %s" % self.file_info[0])
-        self.win_info.addstr( 3, 3, "Length         : %d:%d" % self.file_info[1])
+        self.win_info.addstr( 3, 3, "Length         : %02d:%02d" % self.file_info[1])
         self.win_info.addstr( 4, 3, "Type           : %d" % self.file_info[2])
         self.win_info.addstr( 5, 3, "Tracks         : %d" % self.file_info[3])
         self.win_info.addstr( 6, 3, "Channels       : %d" % self.file_info[4])
@@ -291,9 +302,12 @@ class VisualPlayer(Player):
         self.win_info.addstr( 8, 3, "Octaves        : %d" % self.file_info[6])
         self.win_info.addstr( 9, 3, "Octaves used   : %s" % self.file_info[7])
         self.win_info.addstr(10, 3, "Notes in chan. : %s" % self.file_info[8])
+        self.win_info.addstr(11, 3, "Active channels: %s" % str(self.ch_filter)[1:-1])
+        self.win_info.addstr(12, 3, "Optimizations  : channels=%s, octaves=%s, nopercussion=%s" %
+                             (self.ch_optimize, self.octave_optimize, 9 not in self.ch_filter))
         self.win_info.refresh()
 
-    def handl_keys(self):
+    def handle_keys(self):
 
         c = self.stdscr.getch()
 
@@ -328,42 +342,71 @@ class VisualPlayer(Player):
 
         Player.play(self, midi, info)
 
+
 def main():
 
     parser = argparse.ArgumentParser(description='Proxy')
 
-    parser.add_argument("--file", default="moppy.midi",
-                        help="MIdi file to play")
+    parser.add_argument("-f", "--file", default=None,
+                        help="MIDI file to play")
 
-    parser.add_argument("--port", default="midi",
-                        help="Port to use")
+    parser.add_argument("-p", "--port", default=None,
+                        help="Port to use (sysfs or midiport)")
 
-    parser.add_argument("--maxch", default=4, type=int,
+    parser.add_argument("-l", "--portlist", action="store_true", default=False,
+                        help="List available MIDI ports")
+
+    parser.add_argument("--chmax", default=4, type=int,
                         help="Maximum number of channels")
 
-    parser.add_argument("--optimized", default=False, action="store_true",
-                        help="Use optimizing player")
+    parser.add_argument("--choptimize", action="store_true", default=False,
+                        help="Try to optimize channel allocation")
+
+    parser.add_argument("--nopercussions", action="store_true", default=False,
+                        help="Remove percussions channel (#10)")
+
+    parser.add_argument("--octoptimize", action="store_true", default=False,
+                        help="Try to optimize octaves")
+
+    parser.add_argument("--optimize", action="store_true", default=False,
+                        help="Enable all optimizations")
 
     args = parser.parse_args()
 
-    if args.port == "midi":
+    if args.portlist:
         port_names = mido.get_output_names()
-        port = mido.open_output(port_names[1])
-    else:
+
+        for port in port_names:
+            print(port)
+
+        exit(0)
+
+    if args.choptimize:
+        args.choptimize = True
+        args.octoptimize = True
+        args.nopercussions = True
+
+    if args.port == "sysfs":
         port = MoppySysfsPort()
-
-    '''
-    if args.optimized:
-        do_play = play_optimized
+    elif args.port is None:
+        port = NullPort()
     else:
-        do_play = play
-    '''
+        port = mido.open_output(args.port)
 
-    vp = VisualPlayer(port, args.file, args.maxch)
-    vp.play()
+    if args.file is not None:
+
+        if args.nopercussions:
+            ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15]
+        else:
+            ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+        vp = VisualPlayer(port, args.file, args.chmax, ch_filter, args.choptimize, args.octoptimize)
+        vp.play()
 
 
 if __name__ == '__main__':
+
+    # main()
 
     try:
         main()
