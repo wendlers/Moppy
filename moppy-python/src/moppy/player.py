@@ -1,6 +1,7 @@
 import argparse
 import operator
 import curses
+import time
 import mido
 import os
 
@@ -45,7 +46,8 @@ class MoppySysfsPort(mido.ports.BaseOutput):
 class Player:
 
     def __init__(self, port, filename, ch_max=4, ch_filter=None,
-                 ch_optimize=True, octave_optimize=True, update_hook=None):
+                 ch_optimize=True, ch_mirror=False, octave_optimize=True,
+                 update_hook=None):
 
         self.port = port
         self.filename = filename
@@ -55,9 +57,14 @@ class Player:
         else:
             self.ch_filter = ch_filter
 
-        self.ch_max = ch_max
+        if ch_mirror:
+            self.ch_max = ch_max // 2
+        else:
+            self.ch_max = ch_max
+
         self.ch_optimize = ch_optimize
         self.octave_optimize = octave_optimize
+        self.ch_mirror = ch_mirror
 
         self.update_hook = update_hook
         self.playing = False
@@ -113,10 +120,19 @@ class Player:
                 if self.update_hook is not None:
                     if msg.type == 'note_on':
                         self.update_hook(msg.channel, octave, msg.note % 12)
+                        if self.ch_mirror:
+                            self.update_hook(msg.channel + self.ch_max, octave, msg.note % 12)
                     else:
                         self.update_hook(msg.channel, octave, 12)
+                        if self.ch_mirror:
+                            self.update_hook(msg.channel + self.ch_max, octave, 12)
 
                 self.port.send(msg)
+
+                if self.ch_mirror:
+                    mirror_msg = msg.copy()
+                    mirror_msg.channel += self.ch_max
+                    self.port.send(mirror_msg)
 
         self.port.reset()
 
@@ -166,12 +182,15 @@ class Player:
 
 class VisualPlayer(Player):
 
-    def __init__(self, port, filename, ch_max=4, ch_filter=None, ch_optimize=True, octave_optimize=True):
+    def __init__(self, port, filename, ch_max=4, ch_filter=None, ch_optimize=True, ch_mirror=False,
+                 octave_optimize=True):
 
-        Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize, octave_optimize, self.set_note)
+        Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize, ch_mirror,
+                        octave_optimize, self.set_note)
 
         self.ch_last_oct = {}
         self.info_height = 15
+        self.play_time = 0
 
         self.file_info = [
             "",
@@ -234,7 +253,7 @@ class VisualPlayer(Player):
 
             self.win_menu = curses.newwin(1, self.max_x, 0, 0)
             self.win_menu.bkgd(curses.color_pair(2))
-            self.win_menu.addstr(0, 1, "F10: exit")
+            self.win_menu.addstr(0, 1, "MoppyPlayer curses - F10: exit")
             self.win_menu.refresh()
 
             self.show_notes()
@@ -267,8 +286,8 @@ class VisualPlayer(Player):
 
         self.win_notes.addstr(y + 11, x, "c/o    0    1    2    3    4    5    6    7    8    9   10   11" +
                               "   12   13   14   15  c/o", curses.color_pair(2))
-
         self.win_notes.refresh()
+
 
     def set_note(self, ch, oct, note):
 
@@ -289,12 +308,16 @@ class VisualPlayer(Player):
 
         self.win_notes.refresh()
 
+        dt = int(time.time() - self.play_time)
+        self.win_info.addstr(3, 28, "%02d:%02d" % (dt // 60, dt - (dt // 60) * 60))
+        self.win_info.refresh()
+
         self.handle_keys()
 
     def update_file_info(self):
 
         self.win_info.addstr( 2, 3, "File           : %s" % self.file_info[0])
-        self.win_info.addstr( 3, 3, "Length         : %02d:%02d" % self.file_info[1])
+        self.win_info.addstr( 3, 3, "Length         : %02d:%02d / " % self.file_info[1])
         self.win_info.addstr( 4, 3, "Type           : %d" % self.file_info[2])
         self.win_info.addstr( 5, 3, "Tracks         : %d" % self.file_info[3])
         self.win_info.addstr( 6, 3, "Channels       : %d" % self.file_info[4])
@@ -303,8 +326,8 @@ class VisualPlayer(Player):
         self.win_info.addstr( 9, 3, "Octaves used   : %s" % self.file_info[7])
         self.win_info.addstr(10, 3, "Notes in chan. : %s" % self.file_info[8])
         self.win_info.addstr(11, 3, "Active channels: %s" % str(self.ch_filter)[1:-1])
-        self.win_info.addstr(12, 3, "Optimizations  : channels=%s, octaves=%s, nopercussion=%s" %
-                             (self.ch_optimize, self.octave_optimize, 9 not in self.ch_filter))
+        self.win_info.addstr(12, 3, "Optimizations  : channels=%s, octaves=%s, nopercussion=%s, mirror=%s" %
+                             (self.ch_optimize, self.octave_optimize, 9 not in self.ch_filter, self.ch_mirror))
         self.win_info.refresh()
 
     def handle_keys(self):
@@ -340,6 +363,8 @@ class VisualPlayer(Player):
 
         self.update_file_info()
 
+        self.play_time = time.time()
+
         Player.play(self, midi, info)
 
 
@@ -362,6 +387,9 @@ def main():
     parser.add_argument("--choptimize", action="store_true", default=False,
                         help="Try to optimize channel allocation")
 
+    parser.add_argument("--chmirror", action="store_true", default=False,
+                        help="Mirror channels")
+
     parser.add_argument("--nopercussions", action="store_true", default=False,
                         help="Remove percussions channel (#10)")
 
@@ -381,7 +409,7 @@ def main():
 
         exit(0)
 
-    if args.choptimize:
+    if args.optimize:
         args.choptimize = True
         args.octoptimize = True
         args.nopercussions = True
@@ -400,7 +428,8 @@ def main():
         else:
             ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-        vp = VisualPlayer(port, args.file, args.chmax, ch_filter, args.choptimize, args.octoptimize)
+        vp = VisualPlayer(port, args.file, args.chmax, ch_filter, args.choptimize, args.chmirror,
+                          args.octoptimize)
         vp.play()
 
 
