@@ -136,6 +136,8 @@ class Player:
 
         self.port.reset()
 
+        self.playing = False
+
     @staticmethod
     def analyze(midi):
 
