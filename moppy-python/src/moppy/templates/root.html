@@ -28,13 +28,14 @@
     </script>
 </head>
 <body>
-<h1>Test</h1>
+<h1>Moppy Web Player</h1>
     <ul>
     {% for file in midi_files%}
-        <li>{{file}} <a href="javascript:play('{{file}}')">Play</a></li>
+        <li>{{file}} <a href="javascript:play('{{file}}')">Play</a> | <a href="/delete/{{file}}">Delete</a></li>
     {% endfor %}
     </ul>
-    <div id="status"></div><a href="javascript:stop()">Stop</a>
+    <div id="status"></div>
+    <div><a href="javascript:stop()">Stop</a> | <a href="/upload">Upload</a></div>
     <script>
         function status() {
             nanoajax.ajax(

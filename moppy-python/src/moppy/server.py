@@ -1,27 +1,26 @@
 import threading
 import time
-import player
 import mido
 import os
 
-from flask import Flask, render_template, jsonify
+from moppy import player
+from flask import Flask, render_template, jsonify, redirect, url_for
 
 
 class DebugPort(mido.ports.BaseOutput):
 
     def _send(self, message):
-        #print("send: %s" % message)
+        # print("send: %s" % message)
         pass
 
     def reset(self):
         pass
 
+
 class PlayerThread(threading.Thread):
 
-    def __init__(self, midi_file):
+    def __init__(self, base_path, midi_file):
         threading.Thread.__init__(self)
-
-        base_path = '/local00/sandbox/pyvenv/Moppy/moppy-desk/samplesongs'
 
         self.midi_file = midi_file
         self.player = player.Player(DebugPort(), os.path.join(base_path, midi_file))
@@ -39,28 +38,33 @@ class FlaskApp:
 
         self.port = port
         self.player_thread = None
+        self.base_path = os.path.join(os.path.join(os.getenv("HOME"), ".moppy"))
+        self.midi_base_path = os.path.join(self.base_path, "songs")
+
+        if not os.path.isdir(self.midi_base_path):
+            if not os.path.isdir(self.base_path):
+                os.mkdir(self.base_path)
+            os.mkdir(self.midi_base_path)
 
         self.app = Flask(__name__)
-        self.app.secret_key = '21ojfß9ssfajlök'
 
         self.app.add_url_rule("/", view_func=self.root)
         self.app.add_url_rule("/play/<file>", view_func=self.play)
+        self.app.add_url_rule("/delete/<file>", view_func=self.delete)
         self.app.add_url_rule("/stop", view_func=self.stop)
         self.app.add_url_rule("/status", view_func=self.status)
+        self.app.add_url_rule("/upload", view_func=self.upload)
 
     def run(self):
 
         self.app.run(host='0.0.0.0', port=self.port, threaded=True, debug=True)
 
-
     def root(self):
-
-        base_path = '/local00/sandbox/pyvenv/Moppy/moppy-desk/samplesongs'
 
         midi_files = []
 
-        for file in os.listdir(base_path):
-            fqn = os.path.join(base_path, file)
+        for file in os.listdir(self.midi_base_path):
+            fqn = os.path.join(self.midi_base_path, file)
             if os.path.isfile(fqn) and fqn.endswith(".mid"):
                 midi_files.append(file)
 
@@ -72,11 +76,20 @@ class FlaskApp:
             self.player_thread.player.playing = False
             self.player_thread.join()
 
-        self.player_thread = PlayerThread(file)
+        self.player_thread = PlayerThread(self.midi_base_path, file)
         self.player_thread.start()
         s = "Player started: %s" % file
 
         return s
+
+    def delete(self, file):
+
+        fqn = os.path.join(self.midi_base_path, file)
+
+        if os.path.isfile(fqn):
+            os.unlink(fqn)
+
+        return redirect(url_for('root'))
 
     def stop(self):
         if self.player_thread is None or not self.player_thread.is_alive():
@@ -104,6 +117,10 @@ class FlaskApp:
                 s["time"] = int(time.time() - self.player_thread.time)
 
         return jsonify(s)
+
+    def upload(self):
+        return "TBD"
+
 try:
 
     app = FlaskApp()
