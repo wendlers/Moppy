@@ -4,7 +4,16 @@ import mido
 import os
 
 from moppy import player
-from flask import Flask, render_template, jsonify, redirect, url_for
+from flask import Flask, render_template, jsonify, redirect, url_for, request, flash
+from werkzeug.utils import secure_filename
+
+
+ALLOWED_EXTENSIONS = {'mid'}
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 class DebugPort(mido.ports.BaseOutput):
@@ -47,19 +56,36 @@ class FlaskApp:
             os.mkdir(self.midi_base_path)
 
         self.app = Flask(__name__)
+        self.app.secret_key = '09d8sfoiP(7spfd8uj3%23'
 
-        self.app.add_url_rule("/", view_func=self.root)
+        self.app.add_url_rule("/", view_func=self.root, methods=['GET', 'POST'])
         self.app.add_url_rule("/play/<file>", view_func=self.play)
         self.app.add_url_rule("/delete/<file>", view_func=self.delete)
         self.app.add_url_rule("/stop", view_func=self.stop)
         self.app.add_url_rule("/status", view_func=self.status)
-        self.app.add_url_rule("/upload", view_func=self.upload)
+        self.app.add_url_rule("/upload", view_func=self.upload, methods=['GET', 'POST'])
 
     def run(self):
 
         self.app.run(host='0.0.0.0', port=self.port, threaded=True, debug=True)
 
     def root(self):
+
+        if request.method == 'POST':
+
+            if 'file' not in request.files:
+                flash('No file was submitted')
+            else:
+                file = request.files['file']
+
+                if file.filename == '':
+                    flash('No file was selected')
+                elif file:
+                    if allowed_file(file.filename):
+                        filename = secure_filename(file.filename)
+                        file.save(os.path.join(self.midi_base_path, filename))
+                    else:
+                        flash("Invalid file type")
 
         midi_files = []
 
@@ -119,8 +145,31 @@ class FlaskApp:
         return jsonify(s)
 
     def upload(self):
-        return "TBD"
 
+        if request.method == 'POST':
+            # check if the post request has the file part
+            if 'file' not in request.files:
+                flash('No file part')
+                return redirect(request.url)
+            file = request.files['file']
+            # if user does not select file, browser also
+            # submit a empty part without filename
+            if file.filename == '':
+                flash('No selected file')
+                return redirect(request.url)
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(self.midi_base_path, filename))
+                return redirect(url_for('root'))
+        return '''
+        <!doctype html>
+        <title>Upload new File</title>
+        <h1>Upload new File</h1>
+        <form method=post enctype=multipart/form-data>
+          <p><input type=file name=file>
+             <input type=submit value=Upload>
+        </form>
+        '''
 try:
 
     app = FlaskApp()
