@@ -45,7 +45,7 @@ class MoppySysfsPort(mido.ports.BaseOutput):
 
 class Player:
 
-    def __init__(self, port, filename, ch_max=4, ch_filter=None,
+    def __init__(self, port, filename=None, ch_max=4, ch_filter=None,
                  ch_optimize=True, ch_mirror=False, octave_optimize=True,
                  update_hook=None):
 
@@ -184,7 +184,7 @@ class Player:
 
 class VisualPlayer(Player):
 
-    def __init__(self, port, filename, ch_max=4, ch_filter=None, ch_optimize=True, ch_mirror=False,
+    def __init__(self, port, filename=None, ch_max=4, ch_filter=None, ch_optimize=True, ch_mirror=False,
                  octave_optimize=True):
 
         Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize, ch_mirror,

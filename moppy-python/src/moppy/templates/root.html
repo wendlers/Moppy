@@ -25,7 +25,9 @@
 				    if(code == 200) {
 				        obj = JSON.parse(responseText);
 				        if(obj.playing) {
-				            document.getElementById("status").innerHTML = 'Playing "' + obj.file + '": ' + obj.time + ' / ' + obj.length + ' sec.' + ' | <a href="javascript:stop()">Stop</a>';
+				            document.getElementById("status").innerHTML = 'Playing "' + obj.file + '" (mirror=' +
+				                obj.mirror + '): ' +
+				                obj.time + ' / ' + obj.length + ' sec.' + ' | <a href="javascript:stop()">Stop</a>';
 				        }
 				        else {
 				            document.getElementById("status").innerHTML = "Stopped";

@@ -32,13 +32,31 @@ class PlayerThread(threading.Thread):
         threading.Thread.__init__(self)
 
         self.midi_file = midi_file
-        self.player = player.Player(DebugPort(), os.path.join(base_path, midi_file))
+        self.base_path = base_path
+
+        # TODO: read max. channels from kernel module via sysfs
+        self.player = player.Player(DebugPort(), ch_max=8)
+
         self.time = None
+        self.length = None
 
     def run(self):
 
+        midi = mido.MidiFile(os.path.join(self.base_path, self.midi_file))
+        info = self.player.analyze(midi)
+
+        # no percussion
+        self.player.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15]
+
+        # mirror if possible
+        if len(set(info["channels"].keys()).intersection(self.player.ch_filter)) <= (self.player.ch_max // 2):
+            self.player.ch_mirror = True
+            # print("using channel mirror")
+
+        self.length = midi.length
         self.time = time.time()
-        self.player.play()
+
+        self.player.play(midi, info)
 
 
 class FlaskApp:
@@ -63,7 +81,6 @@ class FlaskApp:
         self.app.add_url_rule("/delete/<file>", view_func=self.delete)
         self.app.add_url_rule("/stop", view_func=self.stop)
         self.app.add_url_rule("/status", view_func=self.status)
-        self.app.add_url_rule("/upload", view_func=self.upload, methods=['GET', 'POST'])
 
     def run(self):
 
@@ -132,8 +149,9 @@ class FlaskApp:
         s = {
             "file": None,
             "playing": False,
-            "length": 120,
-            "time": 0
+            "length": 0,
+            "time": 0,
+            "mirror": False
         }
 
         if self.player_thread is not None:
@@ -141,35 +159,11 @@ class FlaskApp:
             if self.player_thread.player.playing:
                 s["file"] = self.player_thread.midi_file
                 s["time"] = int(time.time() - self.player_thread.time)
+                s["length"] = int(self.player_thread.length)
+                s["mirror"] = self.player_thread.player.ch_mirror
 
         return jsonify(s)
 
-    def upload(self):
-
-        if request.method == 'POST':
-            # check if the post request has the file part
-            if 'file' not in request.files:
-                flash('No file part')
-                return redirect(request.url)
-            file = request.files['file']
-            # if user does not select file, browser also
-            # submit a empty part without filename
-            if file.filename == '':
-                flash('No selected file')
-                return redirect(request.url)
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(self.midi_base_path, filename))
-                return redirect(url_for('root'))
-        return '''
-        <!doctype html>
-        <title>Upload new File</title>
-        <h1>Upload new File</h1>
-        <form method=post enctype=multipart/form-data>
-          <p><input type=file name=file>
-             <input type=submit value=Upload>
-        </form>
-        '''
 try:
 
     app = FlaskApp()
