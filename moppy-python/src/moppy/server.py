@@ -1,4 +1,5 @@
 import threading
+import argparse
 import time
 import mido
 import os
@@ -16,16 +17,6 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-class DebugPort(mido.ports.BaseOutput):
-
-    def _send(self, message):
-        # print("send: %s" % message)
-        pass
-
-    def reset(self):
-        pass
-
-
 class PlayerThread(threading.Thread):
 
     def __init__(self, base_path, midi_file):
@@ -34,8 +25,13 @@ class PlayerThread(threading.Thread):
         self.midi_file = midi_file
         self.base_path = base_path
 
+        if os.path.isdir('/sys/kernel/moppy'):
+            port = player.MoppySysfsPort()
+        else:
+            port = player.NullPort()
+
         # TODO: read max. channels from kernel module via sysfs
-        self.player = player.Player(DebugPort(), ch_max=8)
+        self.player = player.Player(port, ch_max=8)
 
         self.time = None
         self.length = None
@@ -164,14 +160,17 @@ class FlaskApp:
 
         return jsonify(s)
 
-try:
+
+def main():
 
     app = FlaskApp()
     app.run()
 
-except OSError as e:
-    print(e)
-    exit(1)
-except Exception as e:
-    print(e)
-    exit(1)
+if __name__ == '__main__':
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        print(e)

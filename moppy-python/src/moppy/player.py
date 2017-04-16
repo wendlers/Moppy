@@ -422,7 +422,7 @@ class VisualPlayer(Player):
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Proxy')
+    parser = argparse.ArgumentParser(description='Player')
 
     parser.add_argument("-f", "--file", default=None,
                         help="MIDI file to play")

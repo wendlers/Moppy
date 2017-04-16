@@ -1,0 +1,11 @@
+#!/bin/env python3
+
+import sys
+
+from moppy.player import main
+
+try:
+    main()
+except Exception as e:
+    sys.stderr.write(str(e) + "\n")
+    exit(1)
