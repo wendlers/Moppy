@@ -472,7 +472,7 @@ def main():
     if args.port == "sysfs":
         port = MoppySysfsPort()
     elif args.port == "serial":
-        port = SerialPort(args.serdev, 115200)
+        port = SerialPort(args.serdev, 9600)
     elif args.port is None:
         port = NullPort()
     else:
