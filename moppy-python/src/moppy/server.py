@@ -47,7 +47,7 @@ class PlayerThread(threading.Thread):
         # mirror if possible
         if len(set(info["channels"].keys()).intersection(self.player.ch_filter)) <= (self.player.ch_max // 2):
             self.player.ch_mirror = True
-            # print("using channel mirror")
+            self.player.ch_max = self.player.ch_max // 2
 
         self.length = midi.length
         self.time = time.time()
