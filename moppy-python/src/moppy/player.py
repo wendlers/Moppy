@@ -1,6 +1,8 @@
 import argparse
 import operator
+import struct
 import curses
+import serial
 import time
 import mido
 import os
@@ -41,6 +43,54 @@ class MoppySysfsPort(mido.ports.BaseOutput):
     def reset(self):
 
         self._write_sysfs("reset", "ctrl")
+
+
+class SerialPort(mido.ports.BaseOutput):
+
+    MIDI_NOTE_PERIODS = [
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave -5 (   0 -  11)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave -4 (  12 -  23)
+      382,  360,  340,  321,  303,  286,  270,  255,  240,  227,  214,  202,  # octave -3 (  24 -  35)
+      191,  180,  170,  160,  151,  143,  135,  127,  120,  113,  107,  101,  # octave -2 (  36 -  47)
+       95,   90,   85,   80,   75,   71,   67,   63,   60,   56,   53,   50,  # octave -1 (  48 -  59)
+       47,   45,   42,   40,   37,   35,   33,   31,   30,   28,   26,   25,  # octave  0 (  60 -  71)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave  1 (  72 -  83)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave  2 (  84 -  95)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave  3 (  96 - 107)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave  4 ( 108 - 119)
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,  # octave  5 ( 120 - 131)
+    ]
+
+    def __init__(self, port, baudrate):
+        mido.ports.BaseOutput.__init__(self)
+
+        self.serial = serial.Serial(port=port, baudrate=baudrate)
+
+    def _send(self, message):
+
+        if message.type == 'note_on':
+
+            ch = (message.channel * 2) + 2
+            per = self.MIDI_NOTE_PERIODS[message.note]
+            msg = struct.pack("!BH", ch, per)
+
+            self.serial.write(msg)
+
+        elif message.type == 'note_off':
+
+            ch = (message.channel * 2) + 2
+            msg = struct.pack("!BH", ch, 0)
+
+            self.serial.write(msg)
+
+        else:
+            print("** unsupported message type: %s" % message.type)
+
+    def reset(self):
+
+        msg = struct.pack("!BH", 100, 0)
+
+        self.serial.write(msg)
 
 
 class Player:
@@ -378,10 +428,13 @@ def main():
                         help="MIDI file to play")
 
     parser.add_argument("-p", "--port", default=None,
-                        help="Port to use (sysfs or midiport)")
+                        help="Port to use (sysfs, serial or midiport)")
 
     parser.add_argument("-l", "--portlist", action="store_true", default=False,
                         help="List available MIDI ports")
+
+    parser.add_argument("--serdev", default="/dev/ttyUSB0",
+                        help="Serial device to use when port 'serial' is selected")
 
     parser.add_argument("--chmax", default=4, type=int,
                         help="Maximum number of channels")
@@ -418,6 +471,8 @@ def main():
 
     if args.port == "sysfs":
         port = MoppySysfsPort()
+    elif args.port == "serial":
+        port = SerialPort(args.serdev, 115200)
     elif args.port is None:
         port = NullPort()
     else:
