@@ -17,7 +17,6 @@ __Table of Contents__
 
 - [Kernel Moppy](#kernel-moppy)
 	- [Current state](#current-state)
-	- [Things to do](#things-to-do)
 	- [Hardware-Setup](#hardware-setup)
 	- [Building and Installing the Raspberry Pi Kernel Module](#building-and-installing-the-raspberry-pi-kernel-module)
 		- [Prerequisites](#prerequisites)
@@ -39,7 +38,7 @@ __Table of Contents__
 	- [MoppyPlayer - A Curses Based Player](#moppyplayer-a-curses-based-player)
 		- [Play a MIDI File to Kernel Moppy](#play-a-midi-file-to-kernel-moppy)
 		- [Play a MIDI File to Arduino](#play-a-midi-file-to-arduino)
-		- [To play to real MIDI Device](#to-play-to-real-midi-device)
+		- [Play to Real MIDI Device](#play-to-real-midi-device)
 
 <!-- /TOC -->
 ## Current state
@@ -54,10 +53,6 @@ The following is currently in a more or less working state:
 	* Proxy to allow Java based MoppyDesk player to use Moppy Kernel module for
 		playback
 	* Special version of MoppyDesk which detects the proxy
-
-## Things to do
-
-* Write more documentation
 
 ## Hardware-Setup
 
@@ -279,7 +274,7 @@ Mainly for testing, there is the curses based moppy player written in Python. Yo
 
     moppy-player --optimize -p serial --serdev /dev/ttyUSB0 -f Tetris.mid
 
-### To play to real MIDI Device
+### Play to Real MIDI Device
 
 First see which MIDI ports are available on your system:
 
