@@ -74,10 +74,10 @@ struct channel_t {
  * Register available channels.
  */
 static struct channel_t channels[] = {
-		{ 2, "ST#0",  3, "DI#0", ENABLED, 0, LOW, LOW, 0, 0},	// green, blue
+	{ 2, "ST#0",  3, "DI#0", ENABLED, 0, LOW, LOW, 0, 0},	// green, blue
     {17, "ST#1", 27, "DI#1", ENABLED, 0, LOW, LOW, 0, 0},	// yellow, orange
     {22, "ST#2", 23, "DI#2", ENABLED, 0, LOW, LOW, 0, 0},	// red, brown
-    {10, "ST#3",  9, "DI#3", ENABLED, 0, LOW, LOW, 0, 0}, // orange, yellow
+    {10, "ST#3",  9, "DI#3", ENABLED, 0, LOW, LOW, 0, 0},   // orange, yellow
     {11, "ST#4",  8, "DI#4", ENABLED, 0, LOW, LOW, 0, 0},	// gray, red
     { 5, "ST#5",  6, "DI#5", ENABLED, 0, LOW, LOW, 0, 0},	// black, white
     {13, "ST#6", 19, "DI#6", ENABLED, 0, LOW, LOW, 0, 0},	// braun, black

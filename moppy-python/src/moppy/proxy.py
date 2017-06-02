@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 import os
 import pty
 import serial
@@ -9,6 +11,8 @@ import binascii
 import argparse
 import time
 
+from moppy import version
+
 
 class SerialReader:
 
@@ -17,7 +21,8 @@ class SerialReader:
         self.logger = logging.getLogger('serialr')
 
         self.timeout = timeout
-        self.serial = serial.Serial(port=port, baudrate=9600, timeout=self.timeout)
+        self.serial = serial.Serial(port=port, baudrate=9600,
+                                    timeout=self.timeout)
 
         self.logger.info("created (%s)" % port)
 
@@ -71,7 +76,8 @@ class PtyReader:
 
         if os.system('ln -s "%s" "%s"' % (self.pty_name, self.file_path)):
             self.logger.error("file exists: %s" % self.file_path)
-            raise RuntimeError("Already running proxy? File exists: %s" % self.file_path)
+            raise RuntimeError("Already running proxy? File exists: %s" %
+                               self.file_path)
 
         self.logger.info("created (%s, %s)" % (self.pty_name, self.file_path))
         self.created = True
@@ -91,12 +97,17 @@ class PtyReader:
 
         while len(msg) != 3:
 
-            r, _, _ = select.select([self.master], [], [], self.timeout)
+            try:
 
-            if not len(r):
-                break
-            elif self.master in r:
-                msg += os.read(self.master, 1)
+                r, _, _ = select.select([self.master], [], [], self.timeout)
+
+                if not len(r):
+                    break
+                elif self.master in r:
+                    msg += os.read(self.master, 1)
+
+            except KeyboardInterrupt as e:
+                exit(0)
 
         return msg
 
@@ -137,8 +148,6 @@ class UdpWriter:
     def __init__(self, host, port):
 
         self.logger = logging.getLogger('udpw')
-
-        # self.socket.sendto("%d, %d" % (pin, value), ('255.255.255.255', 12345))
 
         self.host = host
         self.port = port
@@ -199,7 +208,7 @@ class FileWriter:
 
         pin, value = struct.unpack("!BH", msg)
 
-        if self.timstamp == None or pin == 100:
+        if self.timstamp is None or pin == 100:
             t = 0
         else:
             t = time.time() - self.timstamp
@@ -223,13 +232,13 @@ class FileReader:
 
         msg = bytearray()
 
-        l = self.file.readline().replace('\n', '').split(",")
+        line = self.file.readline().replace('\n', '').split(",")
 
-        if len(l) == 3:
+        if len(line) == 3:
 
-            t = float(l[0])
-            pin = int(l[1])
-            value = int(l[2])
+            t = float(line[0])
+            pin = int(line[1])
+            value = int(line[2])
 
             msg.append(chr(pin & 0xff))
             msg.append(chr((value >> 8) & 0xff))
@@ -262,14 +271,17 @@ class Proxy:
 
             if len(msg):
 
-                self.logger.debug("routing: [%s] (%s -> %s)" % (binascii.hexlify(msg), str(self.reader), str(self.writer)))
+                self.logger.debug("routing: [%s] (%s -> %s)" %
+                                  (binascii.hexlify(msg), str(self.reader),
+                                   str(self.writer)))
 
                 self.writer.write_msg(msg)
 
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Proxy')
+    parser = argparse.ArgumentParser(description='MoppyProxy %s' %
+                                     version.FULL)
 
     parser.add_argument("--serialport", default="/dev/ttyUSB0",
                         help="Serial port")
@@ -280,18 +292,36 @@ def main():
     parser.add_argument("--udpport", default=12345, type=int,
                         help="UDP port")
 
-    parser.add_argument("--file", default="moppy.mtf",
-                        help="Output/Input file")
+    parser.add_argument("--filein", default="moppyin.mtf",
+                        help="Input file")
+
+    parser.add_argument("--fileout", default="moppyout.mtf",
+                        help="Output file")
 
     parser.add_argument("-r", "--reader", default="pty",
-                        help="Reader to use")
+                        help="Reader to use (pty, serial, udp, file)")
 
     parser.add_argument("-w", "--writer", default="sysfs",
-                        help="Writer to use")
+                        help="Writer to use (serial, udp, sysfs, file)")
+
+    parser.add_argument("--logfile", help="write log to file",
+                        default=None)
+
+    parser.add_argument("--loglevel",
+                        help="loglevel (CRITICAL, ERROR, WARNING, INFO," +
+                        " DEBUG)", default="INFO")
 
     args = parser.parse_args()
 
-    logging.basicConfig(format='%(asctime)-15s %(name)-8s %(message)s', level=logging.DEBUG)
+    if args.logfile is not None:
+        logging.basicConfig(format='%(asctime)-15s %(name)-8s %(message)s',
+                            filename=os.path.expanduser(args.logfile),
+                            level=args.loglevel)
+    else:
+        logging.basicConfig(format='%(asctime)-15s %(name)-8s %(message)s',
+                            level=args.loglevel)
+
+    logging.info('ProxyServer %s' % version.FULL)
 
     readers = {
         "pty": PtyReader,
@@ -300,16 +330,16 @@ def main():
         "file": FileReader
     }
 
-    if not args.reader in readers:
+    if args.reader not in readers:
         print("Invalid reader: %s" % args.reader)
         exit(1)
 
     if args.reader == "serial":
         pr = readers[args.reader](args.serialport)
-    elif args.reader ==  "udp":
+    elif args.reader == "udp":
         pr = readers[args.reader](args.udphost, args.udpport)
-    elif args.reader ==  "file":
-        pr = readers[args.reader](args.file)
+    elif args.reader == "file":
+        pr = readers[args.reader](args.filin)
     else:
         pr = readers[args.reader]()
 
@@ -320,16 +350,16 @@ def main():
         "file": FileWriter
     }
 
-    if not args.writer in writers:
+    if args.writer not in writers:
         print("Invalid writer: %s" % args.writer)
         exit(1)
 
-    if args.writer ==  "serial":
+    if args.writer == "serial":
         pw = writers[args.writer](args.serialport)
     elif args.writer == "udp":
         pw = writers[args.writer](args.udphost, args.udpport)
     elif args.writer == "file":
-        pw = writers[args.writer](args.file)
+        pw = writers[args.writer](args.fileout)
     else:
         pw = writers[args.writer]()
 

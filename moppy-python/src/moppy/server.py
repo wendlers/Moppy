@@ -1,11 +1,14 @@
 import threading
 import argparse
+import logging
+import argparse
 import time
 import mido
 import os
 
-from moppy import player
-from flask import Flask, render_template, jsonify, redirect, url_for, request, flash
+from moppy import player, version
+from flask import Flask, render_template, jsonify
+from flask import redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
 
 
@@ -22,13 +25,17 @@ class PlayerThread(threading.Thread):
     def __init__(self, base_path, midi_file):
         threading.Thread.__init__(self)
 
+        self.logger = logging.getLogger('playert')
+
         self.midi_file = midi_file
         self.base_path = base_path
 
         if os.path.isdir('/sys/kernel/moppy'):
             port = player.MoppySysfsPort()
+            self.logger.info("using sysfs port for output")
         else:
             port = player.NullPort()
+            self.logger.info("using null port for output")
 
         # TODO: read max. channels from kernel module via sysfs
         self.player = player.Player(port, ch_max=8)
@@ -42,12 +49,15 @@ class PlayerThread(threading.Thread):
         info = self.player.analyze(midi)
 
         # no percussion
-        self.player.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15]
+        self.player.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10,
+                                 11, 12, 13, 14, 15]
 
         # mirror if possible
-        if len(set(info["channels"].keys()).intersection(self.player.ch_filter)) <= (self.player.ch_max // 2):
+        if len(set(info["channels"].keys()).intersection(
+                self.player.ch_filter)) <= (self.player.ch_max // 2):
             self.player.ch_mirror = True
             self.player.ch_max = self.player.ch_max // 2
+            self.logger.info("enabled channel mirroring")
 
         self.length = midi.length
         self.time = time.time()
@@ -59,9 +69,12 @@ class FlaskApp:
 
     def __init__(self, port=8088):
 
+        self.logger = logging.getLogger('webapp')
+
         self.port = port
         self.player_thread = None
-        self.base_path = os.path.join(os.path.join(os.getenv("HOME"), ".moppy"))
+        self.base_path = os.path.join(os.path.join(os.getenv("HOME"),
+                                                   ".moppy"))
         self.midi_base_path = os.path.join(self.base_path, "songs")
 
         if not os.path.isdir(self.midi_base_path):
@@ -72,7 +85,8 @@ class FlaskApp:
         self.app = Flask(__name__)
         self.app.secret_key = '09d8sfoiP(7spfd8uj3%23'
 
-        self.app.add_url_rule("/", view_func=self.root, methods=['GET', 'POST'])
+        self.app.add_url_rule("/", view_func=self.root,
+                              methods=['GET', 'POST'])
         self.app.add_url_rule("/play/<file>", view_func=self.play)
         self.app.add_url_rule("/delete/<file>", view_func=self.delete)
         self.app.add_url_rule("/stop", view_func=self.stop)
@@ -80,7 +94,8 @@ class FlaskApp:
 
     def run(self):
 
-        self.app.run(host='0.0.0.0', port=self.port, threaded=True, debug=True)
+        self.app.run(host='0.0.0.0', port=self.port, threaded=True,
+                     debug=False)
 
     def root(self):
 
@@ -88,17 +103,21 @@ class FlaskApp:
 
             if 'file' not in request.files:
                 flash('No file was submitted')
+                self.logger.warn('No file was submitted')
             else:
                 file = request.files['file']
 
                 if file.filename == '':
                     flash('No file was selected')
+                    self.logger.warn('No file was selected')
                 elif file:
                     if allowed_file(file.filename):
                         filename = secure_filename(file.filename)
                         file.save(os.path.join(self.midi_base_path, filename))
                     else:
-                        flash("Invalid file type")
+                        flash('Invalid file type')
+                        self.logger.warn('Invalid file type: %s' %
+                                         file.filename)
 
         midi_files = []
 
@@ -119,6 +138,8 @@ class FlaskApp:
         self.player_thread.start()
         s = "Player started: %s" % file
 
+        self.logger.info('Now playing: %s' % file)
+
         return s
 
     def delete(self, file):
@@ -127,6 +148,8 @@ class FlaskApp:
 
         if os.path.isfile(fqn):
             os.unlink(fqn)
+
+        self.logger.info("Deleted: %s" % file)
 
         return redirect(url_for('root'))
 
@@ -137,6 +160,7 @@ class FlaskApp:
             self.player_thread.player.playing = False
             self.player_thread.join()
             s = "Player stopped"
+            self.logger.info('Stopped playing')
 
         return s
 
@@ -163,8 +187,30 @@ class FlaskApp:
 
 def main():
 
+    parser = argparse.ArgumentParser(description='MoppyServer %s' %
+                                     version.FULL)
+    parser.add_argument("--logfile", help="write log to file",
+                        default=None)
+
+    parser.add_argument("--loglevel",
+                        help="loglevel (CRITICAL, ERROR, WARNING, INFO," +
+                        " DEBUG)", default="INFO")
+
+    args = parser.parse_args()
+
+    if args.logfile is not None:
+        logging.basicConfig(format='%(asctime)-15s %(name)-10s %(message)s',
+                            filename=os.path.expanduser(args.logfile),
+                            level=args.loglevel)
+    else:
+        logging.basicConfig(format='%(asctime)-15s %(name)-10s %(message)s',
+                            level=args.loglevel)
+
+    logging.info('MoppyServer %s' % version.FULL)
+
     app = FlaskApp()
     app.run()
+
 
 if __name__ == '__main__':
 

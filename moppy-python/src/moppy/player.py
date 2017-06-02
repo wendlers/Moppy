@@ -7,6 +7,8 @@ import time
 import mido
 import os
 
+from moppy import version
+
 
 class NullPort(mido.ports.BaseOutput):
 
@@ -50,10 +52,14 @@ class SerialPort(mido.ports.BaseOutput):
     MIDI_NOTE_PERIODS = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        30578, 28861, 27242, 25713, 24270, 22909, 21622, 20409, 19263, 18182, 17161, 16198,
-        15289, 14436, 13621, 12856, 12135, 11454, 10811, 10205, 9632, 9091, 8581, 8099,
-        7645, 7218, 6811, 6428, 6068, 5727, 5406, 5103, 4816, 4546, 4291, 4050,
-        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552, 2408, 2273, 2146, 2025,
+        30578, 28861, 27242, 25713, 24270,
+        22909, 21622, 20409, 19263, 18182, 17161, 16198,
+        15289, 14436, 13621, 12856, 12135, 11454, 10811,
+        10205, 9632, 9091, 8581, 8099,
+        7645, 7218, 6811, 6428, 6068, 5727, 5406, 5103,
+        4816, 4546, 4291, 4050,
+        3823, 3609, 3406, 3214, 3034, 2864, 2703, 2552,
+        2408, 2273, 2146, 2025,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -101,7 +107,8 @@ class Player:
         self.filename = filename
 
         if ch_filter is None:
-            self.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            self.ch_filter = [0, 1, 2, 3, 4, 5, 6, 7,
+                              8, 9, 10, 11, 12, 13, 14, 15]
         else:
             self.ch_filter = ch_filter
 
@@ -131,7 +138,8 @@ class Player:
 
         if self.ch_optimize:
 
-            most_used_channels = sorted(info["channels"].items(), key=operator.itemgetter(1),
+            most_used_channels = sorted(info["channels"].items(),
+                                        key=operator.itemgetter(1),
                                         reverse=True)
 
             mapped_ch = 0
@@ -169,11 +177,13 @@ class Player:
                     if msg.type == 'note_on':
                         self.update_hook(msg.channel, octave, msg.note % 12)
                         if self.ch_mirror:
-                            self.update_hook(msg.channel + self.ch_max, octave, msg.note % 12)
+                            self.update_hook(msg.channel + self.ch_max, octave,
+                                             msg.note % 12)
                     else:
                         self.update_hook(msg.channel, octave, 12)
                         if self.ch_mirror:
-                            self.update_hook(msg.channel + self.ch_max, octave, 12)
+                            self.update_hook(msg.channel + self.ch_max,
+                                             octave, 12)
 
                 self.port.send(msg)
 
@@ -232,11 +242,12 @@ class Player:
 
 class VisualPlayer(Player):
 
-    def __init__(self, port, filename=None, ch_max=4, ch_filter=None, ch_optimize=True, ch_mirror=False,
+    def __init__(self, port, filename=None, ch_max=4, ch_filter=None,
+                 ch_optimize=True, ch_mirror=False,
                  octave_optimize=True):
 
-        Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize, ch_mirror,
-                        octave_optimize, self.set_note)
+        Player.__init__(self, port, filename, ch_max, ch_filter, ch_optimize,
+                        ch_mirror, octave_optimize, self.set_note)
 
         self.ch_last_oct = {}
         self.info_height = 15
@@ -255,6 +266,7 @@ class VisualPlayer(Player):
         ]
 
         self.stdscr = curses.initscr()
+
         curses.noecho()
         curses.cbreak()
         self.stdscr.keypad(1)
@@ -296,14 +308,17 @@ class VisualPlayer(Player):
             self.win_info.box()
             self.win_info.refresh()
 
-            self.win_notes = curses.newwin(self.max_y - (self.info_height + 1), self.max_x, (self.info_height + 1), 0)
+            self.win_notes = curses.newwin(self.max_y - (self.info_height + 1),
+                                           self.max_x, (self.info_height + 1),
+                                           0)
             self.win_notes.bkgd(curses.color_pair(1))
             self.win_notes.box()
             self.win_notes.refresh()
 
             self.win_menu = curses.newwin(1, self.max_x, 0, 0)
             self.win_menu.bkgd(curses.color_pair(2))
-            self.win_menu.addstr(0, 1, "MoppyPlayer curses - F10: exit")
+            self.win_menu.addstr(0, 1, "MoppyPlayer %s - F10: exit" %
+                                 version.FULL)
             self.win_menu.refresh()
 
             self.show_notes()
@@ -323,21 +338,27 @@ class VisualPlayer(Player):
         y = (self.max_y - self.info_height - 12) // 2
         x = (self.max_x - 88) // 2
 
-        self.win_notes.addstr(y, x, "c/o    0    1    2    3    4    5    6    7    8    9   10   11" +
-                              "   12   13   14   15  c/o", curses.color_pair(2))
+        self.win_notes.addstr(y, x, "c/o    0    1    2    3    4    5" +
+                              "    6    7    8    9   10   11" +
+                              "   12   13   14   15  c/o",
+                              curses.color_pair(2))
 
         for o in range(10):
-            self.win_notes.addstr(y + 1 + o, x, " %d " % o, curses.color_pair(2))
+            self.win_notes.addstr(y + 1 + o, x, " %d " % o,
+                                  curses.color_pair(2))
 
             for c in range(16):
-                self.win_notes.addstr(y + 1 + o, x + 5 + c * 5, "   ", curses.color_pair(3))
+                self.win_notes.addstr(y + 1 + o, x + 5 + c * 5, "   ",
+                                      curses.color_pair(3))
 
-            self.win_notes.addstr(y + 1 + o, x + 10 + c * 5, " %d " % o, curses.color_pair(2))
+            self.win_notes.addstr(y + 1 + o, x + 10 + c * 5, " %d " % o,
+                                  curses.color_pair(2))
 
-        self.win_notes.addstr(y + 11, x, "c/o    0    1    2    3    4    5    6    7    8    9   10   11" +
-                              "   12   13   14   15  c/o", curses.color_pair(2))
+        self.win_notes.addstr(y + 11, x, "c/o    0    1    2    3    4    5" +
+                              "    6    7    8    9   10   11" +
+                              "   12   13   14   15  c/o",
+                              curses.color_pair(2))
         self.win_notes.refresh()
-
 
     def set_note(self, ch, oct, note):
 
@@ -351,33 +372,48 @@ class VisualPlayer(Player):
         x = (self.max_x - 88) // 2 + 5
 
         if ch in self.ch_last_oct:
-            self.win_notes.addstr(y + self.ch_last_oct[ch], x + 5 * ch, '   ', curses.color_pair(4))
+            self.win_notes.addstr(y + self.ch_last_oct[ch], x + 5 * ch, '   ',
+                                  curses.color_pair(4))
 
-        self.win_notes.addstr(y + oct, x + 5 * ch, notes[note], curses.color_pair(3))
+        self.win_notes.addstr(y + oct, x + 5 * ch, notes[note],
+                              curses.color_pair(3))
         self.ch_last_oct[ch] = oct
 
         self.win_notes.refresh()
 
         dt = int(time.time() - self.play_time)
-        self.win_info.addstr(3, 28, "%02d:%02d" % (dt // 60, dt - (dt // 60) * 60))
+        self.win_info.addstr(3, 28, "%02d:%02d" % (dt // 60, dt -
+                             (dt // 60) * 60))
         self.win_info.refresh()
 
         self.handle_keys()
 
     def update_file_info(self):
 
-        self.win_info.addstr( 2, 3, "File           : %s" % self.file_info[0])
-        self.win_info.addstr( 3, 3, "Length         : %02d:%02d / " % self.file_info[1])
-        self.win_info.addstr( 4, 3, "Type           : %d" % self.file_info[2])
-        self.win_info.addstr( 5, 3, "Tracks         : %d" % self.file_info[3])
-        self.win_info.addstr( 6, 3, "Channels       : %d" % self.file_info[4])
-        self.win_info.addstr( 7, 3, "Channels used  : %s" % self.file_info[5])
-        self.win_info.addstr( 8, 3, "Octaves        : %d" % self.file_info[6])
-        self.win_info.addstr( 9, 3, "Octaves used   : %s" % self.file_info[7])
-        self.win_info.addstr(10, 3, "Notes in chan. : %s" % self.file_info[8])
-        self.win_info.addstr(11, 3, "Active channels: %s" % str(self.ch_filter)[1:-1])
-        self.win_info.addstr(12, 3, "Optimizations  : channels=%s, octaves=%s, nopercussion=%s, mirror=%s" %
-                             (self.ch_optimize, self.octave_optimize, 9 not in self.ch_filter, self.ch_mirror))
+        self.win_info.addstr(2, 3, "File           : %s" %
+                             self.file_info[0])
+        self.win_info.addstr(3, 3, "Length         : %02d:%02d / " %
+                             self.file_info[1])
+        self.win_info.addstr(4, 3, "Type           : %d" %
+                             self.file_info[2])
+        self.win_info.addstr(5, 3, "Tracks         : %d" %
+                             self.file_info[3])
+        self.win_info.addstr(6, 3, "Channels       : %d" %
+                             self.file_info[4])
+        self.win_info.addstr(7, 3, "Channels used  : %s" %
+                             self.file_info[5])
+        self.win_info.addstr(8, 3, "Octaves        : %d" %
+                             self.file_info[6])
+        self.win_info.addstr(9, 3, "Octaves used   : %s" %
+                             self.file_info[7])
+        self.win_info.addstr(10, 3, "Notes in chan. : %s" %
+                             self.file_info[8])
+        self.win_info.addstr(11, 3, "Active channels: %s" %
+                             str(self.ch_filter)[1:-1])
+        self.win_info.addstr(12, 3, "Optimizations  : channels=%s, " +
+                             "octaves=%s, nopercussion=%s, mirror=%s" %
+                             (self.ch_optimize, self.octave_optimize, 9
+                              not in self.ch_filter, self.ch_mirror))
         self.win_info.refresh()
 
     def handle_keys(self):
@@ -420,7 +456,8 @@ class VisualPlayer(Player):
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Player')
+    parser = argparse.ArgumentParser(description='MoppyPlayer %s' %
+                                     version.FULL)
 
     parser.add_argument("-f", "--file", default=None,
                         help="MIDI file to play")
@@ -432,7 +469,8 @@ def main():
                         help="List available MIDI ports")
 
     parser.add_argument("--serdev", default="/dev/ttyUSB0",
-                        help="Serial device to use when port 'serial' is selected")
+                        help="Serial device to use when port 'serial' " +
+                        "is selected")
 
     parser.add_argument("--chmax", default=4, type=int,
                         help="Maximum number of channels")
@@ -483,14 +521,12 @@ def main():
         else:
             ch_filter = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-        vp = VisualPlayer(port, args.file, args.chmax, ch_filter, args.choptimize, args.chmirror,
-                          args.octoptimize)
+        vp = VisualPlayer(port, args.file, args.chmax, ch_filter,
+                          args.choptimize, args.chmirror, args.octoptimize)
         vp.play()
 
 
 if __name__ == '__main__':
-
-    # main()
 
     try:
         main()
