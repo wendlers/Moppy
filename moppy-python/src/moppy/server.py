@@ -1,12 +1,13 @@
 import threading
-import argparse
 import logging
 import argparse
 import time
 import mido
+import pwd
+import grp
 import os
 
-from moppy import player, version, sudo
+from moppy import player, version, priv
 from flask import Flask, render_template, jsonify
 from flask import redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
@@ -222,8 +223,18 @@ def main():
     home_dir = None
 
     if args.user is not None:
+
         logging.info('Running as user: %s' % args.user)
-        sudo.drop_privileges(args.user)
+
+        if os.path.isdir('/sys/kernel/moppy'):
+            # need to fix permissions to sysfs files first
+            uid = pwd.getpwnam(args.user).pw_uid
+            gid = grp.getgrnam(args.user).gr_gid
+
+            for d in ['ctrl', 'freq', 'info', 'note', 'ticks']:
+                os.chown(os.path.join('/sys/kernel/moppy', d), uid, gid)
+
+        priv.drop_privileges(args.user)
 
         # FIXME we don't know if this is the user home dir
         home_dir = '/home/' + args.user

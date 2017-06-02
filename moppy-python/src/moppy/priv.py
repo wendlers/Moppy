@@ -1,26 +1,5 @@
 import os
-import sys
 import pwd
-
-
-def running_as_root():
-
-    return os.geteuid() == 0
-
-
-def run_as_root():
-
-    if not running_as_root():
-
-        args = ['sudo', sys.executable] + sys.argv + [os.environ]
-
-        try:
-            os.execlpe('sudo', *args)
-
-        except Exception as e:
-
-            print(e)
-            sys.exit(1)
 
 
 def drop_privileges(user_name, chfperm=None):
