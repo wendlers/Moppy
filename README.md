@@ -215,6 +215,17 @@ With a browser, you now could access the player with the following URL:
 
 Via the web interface, upload MIDI files, delete MIDI files, play MIDI files.
 
+If you like to start MoppyServer on boot-time, you could do the following on
+the Pi:
+
+* To ``/etc/modules`` add the line:
+
+	moppy
+
+* To ``/etc/rc.local`` before the ``exit 0`` add the line:
+
+	moppy-server --user pi --logfile /var/log/moppy-server &
+
 ## MoppyProxy - A Proxy to Classic Moppy
 
 With the ``MoppyProxy`` various sezenarious are possible:
