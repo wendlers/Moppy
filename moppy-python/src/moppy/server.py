@@ -32,10 +32,10 @@ class PlayerThread(threading.Thread):
 
         if os.path.isdir('/sys/kernel/moppy'):
             port = player.MoppySysfsPort()
-            self.logger.info("using sysfs port for output")
+            self.logger.info("Using sysfs port for output")
         else:
             port = player.NullPort()
-            self.logger.info("using null port for output")
+            self.logger.info("Using null port for output")
 
         # TODO: read max. channels from kernel module via sysfs
         self.player = player.Player(port, ch_max=8)
@@ -57,7 +57,7 @@ class PlayerThread(threading.Thread):
                 self.player.ch_filter)) <= (self.player.ch_max // 2):
             self.player.ch_mirror = True
             self.player.ch_max = self.player.ch_max // 2
-            self.logger.info("enabled channel mirroring")
+            self.logger.info("Enabled channel mirroring")
 
         self.length = midi.length
         self.time = time.time()
@@ -67,14 +67,21 @@ class PlayerThread(threading.Thread):
 
 class FlaskApp:
 
-    def __init__(self, port=8088):
+    def __init__(self, home_dir=None, port=8088):
 
         self.logger = logging.getLogger('webapp')
 
         self.port = port
         self.player_thread = None
-        self.base_path = os.path.join(os.path.join(os.getenv("HOME"),
+
+        if home_dir is None:
+            home_dir = os.getenv("HOME")
+
+        self.base_path = os.path.join(os.path.join(home_dir,
                                                    ".moppy"))
+
+        self.logger.info('Base dir is: %s' % self.base_path)
+
         self.midi_base_path = os.path.join(self.base_path, "songs")
 
         if not os.path.isdir(self.midi_base_path):
@@ -103,20 +110,20 @@ class FlaskApp:
 
             if 'file' not in request.files:
                 flash('No file was submitted')
-                self.logger.warn('No file was submitted')
+                self.logger.warning('No file was submitted')
             else:
                 file = request.files['file']
 
                 if file.filename == '':
                     flash('No file was selected')
-                    self.logger.warn('No file was selected')
+                    self.logger.warning('No file was selected')
                 elif file:
                     if allowed_file(file.filename):
                         filename = secure_filename(file.filename)
                         file.save(os.path.join(self.midi_base_path, filename))
                     else:
                         flash('Invalid file type')
-                        self.logger.warn('Invalid file type: %s' %
+                        self.logger.warning('Invalid file type: %s' %
                                          file.filename)
 
         midi_files = []
@@ -212,11 +219,16 @@ def main():
 
     logging.info('MoppyServer %s' % version.FULL)
 
+    home_dir = None
+
     if args.user is not None:
         logging.info('Running as user: %s' % args.user)
         sudo.drop_privileges(args.user)
 
-    app = FlaskApp()
+        # FIXME we don't know if this is the user home dir
+        home_dir = '/home/' + args.user
+
+    app = FlaskApp(home_dir=home_dir)
     app.run()
 
 
