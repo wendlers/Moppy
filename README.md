@@ -31,15 +31,15 @@ __Table of Contents__
 			- [Play a MIDI note](#play-a-midi-note)
 	- [Install the Python Midi Players on the Pi](#install-the-python-midi-players-on-the-pi)
 		- [Prerequisites](#prerequisites)
-		- [Install the players](#install-the-players)
+		- [Install the Players](#install-the-players)
 	- [MoppyServer - Web-Based Player](#moppyserver-web-based-player)
-		- [MoppyProxy - A Proxy to Classic Moppy](#moppyproxy-a-proxy-to-classic-moppy)
-			- [Connecting MoppyDesk on the Pi (with Kernel Moppy)](#connecting-moppydesk-on-the-pi-with-kernel-moppy)
-			- [Connecting MoppyDesk on remote to the Pi (with Kernel Moppy)](#connecting-moppydesk-on-remote-to-the-pi-with-kernel-moppy)
-		- [MoppyPlayer - A Curses Based Player](#moppyplayer-a-curses-based-player)
-			- [Play a MIDI File to Kernel Moppy](#play-a-midi-file-to-kernel-moppy)
-			- [Play a MIDI File to Arduino](#play-a-midi-file-to-arduino)
-			- [To play to real MIDI Device](#to-play-to-real-midi-device)
+	- [MoppyProxy - A Proxy to Classic Moppy](#moppyproxy-a-proxy-to-classic-moppy)
+		- [Connecting MoppyDesk on the Pi (with Kernel Moppy)](#connecting-moppydesk-on-the-pi-with-kernel-moppy)
+		- [Connecting MoppyDesk on remote to the Pi (with Kernel Moppy)](#connecting-moppydesk-on-remote-to-the-pi-with-kernel-moppy)
+	- [MoppyPlayer - A Curses Based Player](#moppyplayer-a-curses-based-player)
+		- [Play a MIDI File to Kernel Moppy](#play-a-midi-file-to-kernel-moppy)
+		- [Play a MIDI File to Arduino](#play-a-midi-file-to-arduino)
+		- [To play to real MIDI Device](#to-play-to-real-midi-device)
 
 <!-- /TOC -->
 ## Current state
@@ -197,7 +197,7 @@ To access the kernel module via sysfs, the user pi needs to be added to the grou
 
 Please note, that the group settings apply after the next login only.
 
-### Install the players
+### Install the Players
 
 From the host computer, copy the whole ``moppy-python`` directory (with all sub-directories) to the Pi.
 On the Pi change into ``moppy-python/src`` and install like so:
@@ -220,7 +220,7 @@ With a browser, you now could access the player with the following URL:
 
 Via the web interface, upload MIDI files, delete MIDI files, play MIDI files.
 
-### MoppyProxy - A Proxy to Classic Moppy
+## MoppyProxy - A Proxy to Classic Moppy
 
 With the ``MoppyProxy`` various sezenarious are possible:
 
@@ -237,7 +237,7 @@ To compile MoppyDesk do the following on your host machine:
 
 This should produce the JAR file ``dist/lib/MoppyDesk-combined-<DATE>.jar``. Copy this to your Pi. Please note, that the MoppyDesk version provided is a special version which detects the proxy if present. The version from SammyIAm will not work with the proxy.
 
-#### Connecting MoppyDesk on the Pi (with Kernel Moppy)
+### Connecting MoppyDesk on the Pi (with Kernel Moppy)
 
 Start the proxy FIRST:
 
@@ -249,7 +249,7 @@ Then SECOND start MoppyDesk on a different terminal:
 
 In the MoppyDesk application select for all channels "Moppy Serial" and set the value to "MOPPY PROXY". Now use MoppyDesk as usual.
 
-#### Connecting MoppyDesk on remote to the Pi (with Kernel Moppy)
+### Connecting MoppyDesk on remote to the Pi (with Kernel Moppy)
 
 For this, you need two proxy instances. One on the Pi and one on the Remote host. Both proxies are connected via network / UDP.
 
@@ -267,19 +267,19 @@ And on a different terminal on the remote machine:
 
 Again, in the MoppyDesk application select for all channels "Moppy Serial" and set the value to "MOPPY PROXY". Now use MoppyDesk as usual.
 
-### MoppyPlayer - A Curses Based Player
+## MoppyPlayer - A Curses Based Player
 
 Mainly for testing, there is the curses based moppy player written in Python. You could use this player to play a MIDI file to kernel Moppy via sysfs or to an Arduino based setup via serial line. Also if you have real MIDI devices connected to your machine and installed ``rtmidi`` for Python, you could output to that device too.
 
-#### Play a MIDI File to Kernel Moppy
+### Play a MIDI File to Kernel Moppy
 
     moppy-player --optimize -f Tetris.mid
 
-#### Play a MIDI File to Arduino
+### Play a MIDI File to Arduino
 
     moppy-player --optimize -p serial --serdev /dev/ttyUSB0 -f Tetris.mid
 
-#### To play to real MIDI Device
+### To play to real MIDI Device
 
 First see which MIDI ports are available on your system:
 
