@@ -6,7 +6,7 @@ import time
 import mido
 import os
 
-from moppy import player, version
+from moppy import player, version, sudo
 from flask import Flask, render_template, jsonify
 from flask import redirect, url_for, request, flash
 from werkzeug.utils import secure_filename
@@ -189,12 +189,16 @@ def main():
 
     parser = argparse.ArgumentParser(description='MoppyServer %s' %
                                      version.FULL)
+
     parser.add_argument("--logfile", help="write log to file",
                         default=None)
 
     parser.add_argument("--loglevel",
                         help="loglevel (CRITICAL, ERROR, WARNING, INFO," +
                         " DEBUG)", default="INFO")
+
+    parser.add_argument("--user", help="run as user",
+                        default=None)
 
     args = parser.parse_args()
 
@@ -207,6 +211,10 @@ def main():
                             level=args.loglevel)
 
     logging.info('MoppyServer %s' % version.FULL)
+
+    if args.user is not None:
+        logging.info('Running as user: %s' % args.user)
+        sudo.drop_privileges(args.user)
 
     app = FlaskApp()
     app.run()
