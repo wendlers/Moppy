@@ -11,7 +11,7 @@ setup(
     url='https://www.kaltpost.de/',
     requires=[
       "Flask (>=0.12)",
-      "pyserial (>=3.0.0)"
+      "pyserial (>=3.0.0)", 'flask', 'mido'
     ],
     packages=['moppy'],
     package_data={'moppy': ['templates/*']},

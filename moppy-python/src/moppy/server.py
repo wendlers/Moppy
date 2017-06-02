@@ -125,7 +125,7 @@ class FlaskApp:
                     else:
                         flash('Invalid file type')
                         self.logger.warning('Invalid file type: %s' %
-                                         file.filename)
+                                            file.filename)
 
         midi_files = []
 
@@ -236,7 +236,7 @@ def main():
 
         priv.drop_privileges(args.user)
 
-        # FIXME we don't know if this is the user home dir
+        # FIXME we don't know if this is really the users home dir
         home_dir = '/home/' + args.user
 
     app = FlaskApp(home_dir=home_dir)
